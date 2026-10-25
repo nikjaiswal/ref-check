@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reference Checker</title>
+  <meta name="description" content="Paste a reference list and verify each entry against the Crossref database. Finds DOIs, flags mismatched years, authors and titles, and catches references that may not exist.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1>Reference Checker</h1>
+      <p class="tagline">Paste a reference list. Each entry is looked up in <a href="https://www.crossref.org/documentation/retrieve-metadata/rest-api/" target="_blank" rel="noopener">Crossref</a> and scored on how well the title, authors and year agree with the best match.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <label for="refs" class="label">References <span class="hint">(one per line, or separated by blank lines; numbering is stripped automatically)</span></label>
+      <textarea id="refs" rows="12" spellcheck="false" placeholder="1. Watson JD, Crick FHC. Molecular structure of nucleic acids. Nature. 1953;171:737-738.
+2. Smith J, et al. A paper that does not exist. J Imaginary Res. 2021;5:1-10."></textarea>
+
+      <div class="controls">
+        <label class="inline">
+          <span>Email <span class="hint">(optional, puts you in Crossref's faster &ldquo;polite&rdquo; pool)</span></span>
+          <input id="mailto" type="email" placeholder="you@example.org" autocomplete="email">
+        </label>
+        <div class="buttons">
+          <button id="sample" type="button" class="secondary">Load sample</button>
+          <button id="clear" type="button" class="secondary">Clear</button>
+          <button id="check" type="button" class="primary">Check references</button>
+        </div>
+      </div>
+
+      <div id="progress" class="progress" hidden>
+        <div class="bar"><div id="bar-fill" class="bar-fill"></div></div>
+        <span id="progress-text"></span>
+        <button id="cancel" type="button" class="link">Cancel</button>
+      </div>
+    </section>
+
+    <section id="summary" class="summary" hidden></section>
+
+    <section id="results-section" hidden>
+      <div class="results-head">
+        <h2>Results</h2>
+        <div class="buttons">
+          <button id="export-csv" type="button" class="secondary">Download CSV</button>
+          <button id="copy-dois" type="button" class="secondary">Copy matched DOIs</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="results">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Your reference</th>
+              <th>Status</th>
+              <th>Best Crossref match</th>
+              <th>Checks</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel about">
+      <h2>How it works</h2>
+      <ul>
+        <li><strong>DOI present in the reference:</strong> the DOI is fetched directly and the metadata is compared with the text of your reference. A DOI that resolves to a different paper is flagged.</li>
+        <li><strong>No DOI:</strong> the reference text is sent to Crossref's bibliographic search and the top three results are scored.</li>
+        <li><strong>Scoring:</strong> title similarity, first-author surname, and publication year are each checked. <span class="badge match">Match</span> means all three agree, <span class="badge likely">Likely</span> means most agree, <span class="badge unverified">Unverified</span> means Crossref returned nothing close, and <span class="badge mismatch">Mismatch</span> means a DOI pointed to a different work.</li>
+        <li>Everything runs in your browser. Nothing is stored on a server. Requests go only to <code>api.crossref.org</code>.</li>
+        <li>Crossref covers most journal articles and many books, but not everything. An <em>Unverified</em> result means the reference could not be found, not that it is wrong. Check it by hand.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <p>Open source. <a id="repo-link" href="#" target="_blank" rel="noopener">View on GitHub</a>. Data from the <a href="https://api.crossref.org" target="_blank" rel="noopener">Crossref REST API</a>.</p>
+  </footer>
+
+  <script src="js/parse.js"></script>
+  <script src="js/match.js"></script>
+  <script src="js/crossref.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
