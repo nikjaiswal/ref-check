@@ -13,7 +13,8 @@
   const tbody = $('#results tbody');
 
   const STATUS_LABEL = {
-    match: 'Match', likely: 'Likely', unverified: 'Unverified', mismatch: 'DOI mismatch', error: 'Error', pending: 'Checking…',
+    match: 'Match', errors: 'Errors found', likely: 'Likely', unverified: 'Unverified',
+    mismatch: 'DOI mismatch', error: 'Error', pending: 'Checking…',
   };
 
   const SAMPLE = `1. Sikora A, Celi LA, Abdulnour RE. Can AI say "I don't know"? N Engl J Med. 2026;394(19):1873-1875. doi:10.1056/NEJMp2517624
@@ -21,9 +22,10 @@
 3. Futoma J, Simons M, Panch T, Doshi-Velez F, Celi LA. The myth of generalisability in clinical research and machine learning in health care. Lancet Digit Health. 2020;2(9):e489-e492.
 4. Johnson AEW, Stone DJ, Celi LA, Pollard TJ. The MIMIC Code Repository: enabling reproducibility in critical care research. J Am Med Inform Assoc. 2018;25(1):32-39.
 5. Gottesman O, Johansson F, Komorowski M, Faisal A, Sontag D, Doshi-Velez F, Celi LA. Guidelines for reinforcement learning in healthcare. Nat Med. 2019;25(1):16-18.
-6. Panch T, Mattie H, Celi LA. The "inconvenient truth" about AI in healthcare. NPJ Digit Med. 2019;2:77.
-7. Smith JA, Doe RB. Longitudinal outcomes of imaginary interventions in a fictional cohort. J Nonexistent Med. 2019;12(3):45-52.
-8. Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. Lancet. 1986;1(8476):307-310. https://doi.org/10.1038/s41591-018-0213-5`;
+6. Panch T, Mattie H, Celi LA. The "inconvenient truth" about AI in healthcare. NPJ Digit Med. 2019;2(1):77.
+7. Ghasemi M, Celi LA, Stone DJ. State of the art review: the data revolution in critical care. Crit Care. 2016;19(1):181.
+8. Smith JA, Doe RB. Longitudinal outcomes of imaginary interventions in a fictional cohort. J Nonexistent Med. 2019;12(3):45-52.
+9. Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. Lancet. 1986;1(8476):307-310. https://doi.org/10.1038/s41591-018-0213-5`;
 
   let state = { results: [], controller: null };
 
@@ -70,12 +72,11 @@
       index: i + 1,
       text,
       doi: RefParse.extractDoi(text),
-      year: RefParse.extractYear(text),
-      surname: RefParse.extractFirstSurname(text),
+      details: RefParse.extractDetails(text),
       status: 'pending',
       best: null,
+      checks: null,
       candidates: [],
-      score: null,
       error: null,
     }));
 
@@ -121,12 +122,11 @@
       await limiter(signal);
       const work = await Crossref.getWorkByDoi(r.doi, mailto, signal);
       if (work) {
-        const s = RefMatch.scoreWork(work, r);
         r.best = work;
-        r.score = s;
-        r.status = RefMatch.classify(s, true);
+        r.checks = RefMatch.checkWork(work, r);
         r.viaDoi = true;
-        // If the DOI points elsewhere, also search by text so the user can see the probable intended work.
+        r.status = RefMatch.classify(r.checks, true);
+        // If the DOI points elsewhere, also search by text to show the probable intended work.
         if (r.status === 'mismatch') {
           await limiter(signal);
           const items = await Crossref.searchBibliographic(r.text, 3, mailto, signal);
@@ -142,15 +142,15 @@
     const ranked = rankCandidates(items, r);
     r.candidates = ranked;
     if (ranked.length === 0) { r.status = 'unverified'; return; }
-    r.score = ranked[0].score;
-    r.status = RefMatch.classify(ranked[0].score, false);
+    r.checks = ranked[0].checks;
+    r.status = RefMatch.classify(r.checks, false);
     if (r.status !== 'unverified') r.best = ranked[0].work;
   }
 
   function rankCandidates(items, r) {
     return items
-      .map(work => ({ work, score: RefMatch.scoreWork(work, r) }))
-      .sort((a, b) => b.score.score - a.score.score);
+      .map(work => ({ work, checks: RefMatch.checkWork(work, r) }))
+      .sort((a, b) => b.checks.score - a.checks.score);
   }
 
   function updateProgress(done, total) {
@@ -164,7 +164,6 @@
     const e = document.createElement(tag);
     if (attrs) for (const [k, v] of Object.entries(attrs)) {
       if (k === 'class') e.className = v;
-      else if (k === 'html') e.innerHTML = v;
       else e.setAttribute(k, v);
     }
     for (const c of children) if (c != null) e.append(c);
@@ -176,22 +175,104 @@
   }
 
   function formatWork(work) {
-    const title = RefMatch.workTitle(work);
+    const title = RefMatch.workTitleFull(work).replace(/<[^>]+>/g, '');
     const authors = (work.author || []).slice(0, 3).map(a => a.family || a.name).filter(Boolean);
     const more = (work.author || []).length > 3 ? ' et al' : '';
-    const journal = (work['container-title'] || [])[0] || work.publisher || '';
+    const journal = RefMatch.workJournal(work).full || work.publisher || '';
     const year = RefMatch.workYear(work);
     const vol = work.volume ? `;${work.volume}` : '';
     const issue = work.issue ? `(${work.issue})` : '';
-    const page = work.page ? `:${work.page}` : '';
+    const p = RefMatch.workPages(work);
+    const page = p.start ? `:${p.start}${p.end ? '-' + p.end : ''}` : '';
     const parts = [authors.length ? authors.join(', ') + more : '', journal, `${year || ''}${vol}${issue}${page}`].filter(Boolean);
     return { title, meta: parts.join('. ') };
   }
 
-  function checkLine(label, value, detail) {
-    const cls = value === true ? 'ok' : value === false ? 'bad' : 'na';
-    const mark = value === true ? '✓' : value === false ? '✗' : '–';
-    return el('div', { class: cls }, `${mark} ${label}${detail ? ' ' + detail : ''}`);
+  const MARK = { ok: '✓', bad: '✗', warn: '!', na: '–' };
+
+  function line(kind, label, ...notes) {
+    const d = el('div', { class: 'check ' + kind }, el('span', { class: 'mark' }, MARK[kind]), ' ', el('span', { class: 'lbl' }, label));
+    for (const n of notes.filter(Boolean)) d.append(el('div', { class: 'note' }, n));
+    return d;
+  }
+
+  /** One line per part of the citation, with the Crossref value when it differs. */
+  function renderChecks(r) {
+    const c = r.checks;
+    const out = [];
+
+    // A DOI that belongs to another paper: comparing fields with that paper is not useful.
+    if (r.status === 'mismatch') {
+      const top = r.candidates[0];
+      const intended = top && ['match', 'errors', 'likely'].includes(RefMatch.classify(top.checks, false)) ? top.work : null;
+      out.push(line('bad', 'DOI belongs to a different paper',
+        `That DOI is: ${RefMatch.workTitleFull(r.best).replace(/<[^>]+>/g, '')}`,
+        intended ? `Likely correct DOI: ${intended.DOI}` : 'No likely correct DOI found'));
+      return out;
+    }
+
+    // Title
+    const t = c.title;
+    if (t.ok === true) out.push(line('ok', 'Title'));
+    else {
+      const notes = [];
+      if (t.missing.length) notes.push('Missing words: ' + t.missing.join(', '));
+      if (t.extra.length) notes.push('Extra words: ' + t.extra.join(', '));
+      out.push(line('bad', 'Title differs', ...notes));
+    }
+
+    // Authors
+    const a = c.authors;
+    if (a.ok === null) out.push(line('na', 'Authors', a.note));
+    else if (a.ok === 'missing') out.push(line('warn', 'Authors not found in reference'));
+    else {
+      const count = a.etAl ? `${a.matched} listed, et al.` : `${a.matched} of ${a.total}`;
+      if (a.ok) out.push(line('ok', `Authors (${count})`));
+      else {
+        const notes = [];
+        if (!a.firstOk) notes.push(`First author should be ${a.expected[0]}`);
+        if (a.missing.length) notes.push('Missing: ' + a.missing.join(', '));
+        if (a.unknown.length) notes.push('Not in Crossref record: ' + a.unknown.join(', '));
+        if (!a.orderOk) notes.push('Author order differs from Crossref');
+        if (a.initialsWrong.length) notes.push('Initials differ: ' + a.initialsWrong.join('; '));
+        out.push(line('bad', `Authors (${count})`, ...notes));
+      }
+    }
+
+    // Journal
+    const j = c.journal;
+    if (j.ok === true) out.push(line('ok', 'Journal'));
+    else if (j.ok === false) out.push(line('bad', 'Journal differs', `Crossref: ${j.expected}`));
+    else out.push(line('na', 'Journal', 'Crossref lists none'));
+
+    // Year, volume, issue, pages
+    const simple = [['Year', c.year], ['Volume', c.volume], ['Issue', c.issue], ['Pages', c.pages]];
+    for (const [label, f] of simple) {
+      if (f.ok === true) out.push(line('ok', `${label} ${f.given}`));
+      else if (f.ok === false) out.push(line('bad', `${label} ${f.given}`, `Crossref: ${f.expected}`));
+      else if (f.ok === 'missing') out.push(line('warn', `${label} missing`, `Crossref: ${f.expected}`));
+      else out.push(line('na', label, 'Crossref lists none'));
+    }
+
+    // DOI
+    const d = c.doi;
+    if (r.doiNotFound) out.push(line('bad', 'DOI not in Crossref', r.best ? `Crossref: ${r.best.DOI}` : null));
+    else if (d.ok === true) out.push(line('ok', 'DOI'));
+    else if (d.ok === false) out.push(line('bad', 'DOI differs', `Crossref: ${d.expected}`));
+    else out.push(line('na', 'DOI not given', r.best ? `Crossref: ${d.expected}` : null));
+
+    return out;
+  }
+
+  function candidateList(cands, title) {
+    const det = el('details', { class: 'alt' }, el('summary', null, title));
+    const ul = el('ul');
+    for (const c of cands) {
+      const g = formatWork(c.work);
+      ul.append(el('li', null, `${g.title} `, el('a', { href: 'https://doi.org/' + c.work.DOI, target: '_blank', rel: 'noopener' }, c.work.DOI)));
+    }
+    det.append(ul);
+    return det;
   }
 
   function renderRow(r) {
@@ -201,37 +282,36 @@
 
     const statusTd = el('td', null, badge(r.status));
     if (r.error) statusTd.append(el('div', { class: 'hint' }, r.error));
-    if (r.doiNotFound) statusTd.append(el('div', { class: 'hint bad' }, 'DOI not in Crossref'));
+    if (r.checks && (r.status === 'match' || r.status === 'errors')) {
+      const n = r.checks.errors.length, w = r.checks.warnings.length;
+      if (n) statusTd.append(el('div', { class: 'hint bad' }, `${n} error${n > 1 ? 's' : ''}`));
+      if (w) statusTd.append(el('div', { class: 'hint warn' }, `${w} missing`));
+    }
     tr.append(statusTd);
 
     const matchedTd = el('td', { class: 'matched' });
     if (r.status === 'unverified') {
       matchedTd.append(el('div', { class: 'hint' }, 'No plausible match found'));
-      if (r.candidates.length) {
-        const det = el('details', { class: 'alt' }, el('summary', null, 'Closest Crossref results (not matches)'));
-        const ul = el('ul');
-        for (const c of r.candidates) {
-          const g = formatWork(c.work);
-          ul.append(el('li', null, `${g.title} `, el('a', { href: 'https://doi.org/' + c.work.DOI, target: '_blank', rel: 'noopener' }, c.work.DOI)));
-        }
-        det.append(ul);
-        matchedTd.append(det);
-      }
+      if (r.candidates.length) matchedTd.append(candidateList(r.candidates, 'Closest Crossref results (not matches)'));
     } else if (r.best) {
       const f = formatWork(r.best);
       matchedTd.append(el('div', { class: 'mt' }, f.title));
       matchedTd.append(el('div', { class: 'meta' }, f.meta));
       matchedTd.append(el('div', { class: 'doi' }, el('a', { href: 'https://doi.org/' + r.best.DOI, target: '_blank', rel: 'noopener' }, r.best.DOI)));
+      if (r.status !== 'mismatch') {
+        const cite = RefMatch.formatVancouver(r.best);
+        const copyBtn = el('button', { type: 'button', class: 'link small' }, 'Copy');
+        copyBtn.addEventListener('click', async () => {
+          try { await navigator.clipboard.writeText(cite); copyBtn.textContent = 'Copied'; } catch (e) { copyBtn.textContent = 'Copy failed'; }
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        });
+        const det = el('details', { class: 'alt' }, el('summary', null, 'Citation from Crossref'), el('div', { class: 'cite' }, cite, ' ', copyBtn));
+        if (r.status === 'errors') det.open = true;
+        matchedTd.append(det);
+      }
       const alts = r.candidates.filter(c => c.work.DOI !== r.best.DOI);
       if (alts.length) {
-        const det = el('details', { class: 'alt' }, el('summary', null, r.status === 'mismatch' ? 'Probable intended work' : `${alts.length} other candidate${alts.length > 1 ? 's' : ''}`));
-        const ul = el('ul');
-        for (const c of alts) {
-          const g = formatWork(c.work);
-          ul.append(el('li', null, `${g.title} `, el('a', { href: 'https://doi.org/' + c.work.DOI, target: '_blank', rel: 'noopener' }, c.work.DOI)));
-        }
-        det.append(ul);
-        matchedTd.append(det);
+        matchedTd.append(candidateList(alts, r.status === 'mismatch' ? 'Probable intended work' : `${alts.length} other candidate${alts.length > 1 ? 's' : ''}`));
       }
     } else if (r.status === 'pending') {
       matchedTd.append(el('span', { class: 'hint' }, '…'));
@@ -239,13 +319,7 @@
     tr.append(matchedTd);
 
     const checksTd = el('td', { class: 'checks' });
-    if (r.score) {
-      const s = r.score;
-      checksTd.append(checkLine('Title', s.title >= 0.8 ? true : s.title >= 0.55 ? null : false, `${Math.round(s.title * 100)}%`));
-      checksTd.append(checkLine('Author', s.author, r.surname ? `(${r.surname})` : ''));
-      checksTd.append(checkLine('Year', s.year, r.year && s.workYear && r.year !== s.workYear ? `(${r.year} vs ${s.workYear})` : r.year ? `(${r.year})` : ''));
-      checksTd.append(checkLine('DOI', r.doi ? (r.viaDoi ? true : r.doiNotFound ? false : (r.best && r.best.DOI.toLowerCase() === r.doi.toLowerCase())) : null, r.doi ? '' : '(none given)'));
-    }
+    if (r.checks && r.best) for (const l of renderChecks(r)) checksTd.append(l);
     tr.append(checksTd);
     return tr;
   }
@@ -262,11 +336,12 @@
     summaryEl.innerHTML = '';
     const stat = (n, label) => el('div', { class: 'stat' }, el('span', { class: 'n' }, String(n)), el('span', { class: 'l' }, label));
     summaryEl.append(stat(state.results.length, 'references'));
-    summaryEl.append(stat(counts.match || 0, 'matched'));
+    summaryEl.append(stat(counts.match || 0, 'fully correct'));
+    summaryEl.append(stat(counts.errors || 0, 'with errors'));
     summaryEl.append(stat(counts.likely || 0, 'likely'));
     summaryEl.append(stat(counts.unverified || 0, 'unverified'));
-    summaryEl.append(stat((counts.mismatch || 0), 'DOI mismatch'));
-    if (counts.error) summaryEl.append(stat(counts.error, 'errors'));
+    summaryEl.append(stat(counts.mismatch || 0, 'DOI mismatch'));
+    if (counts.error) summaryEl.append(stat(counts.error, 'failed'));
     summaryEl.hidden = false;
   }
 
@@ -277,17 +352,37 @@
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
+  function fieldStatus(ok) {
+    return ok === true ? 'ok' : ok === false ? 'wrong' : ok === 'missing' ? 'missing' : 'n/a';
+  }
+
   function exportCsv() {
-    const rows = [['#', 'reference', 'status', 'matched_title', 'matched_doi', 'matched_year', 'title_similarity', 'author_match', 'year_match']];
+    const rows = [[
+      '#', 'reference', 'status', 'errors', 'crossref_title', 'crossref_doi', 'crossref_citation',
+      'title', 'title_missing_words', 'title_extra_words',
+      'authors', 'authors_missing', 'authors_not_in_record', 'author_order_ok', 'initials_wrong',
+      'journal', 'crossref_journal', 'year', 'crossref_year', 'volume', 'crossref_volume',
+      'issue', 'crossref_issue', 'pages', 'crossref_pages', 'doi', 'given_doi',
+    ]];
     for (const r of state.results) {
+      const c = r.checks;
+      const has = !!(c && r.best);
+      const A = has ? c.authors : {};
       rows.push([
         r.index, r.text, STATUS_LABEL[r.status] || r.status,
-        r.best ? RefMatch.workTitle(r.best) : '',
-        r.best ? r.best.DOI : '',
-        r.best ? RefMatch.workYear(r.best) : '',
-        r.score ? Math.round(r.score.title * 100) + '%' : '',
-        r.score ? fmtBool(r.score.author) : '',
-        r.score ? fmtBool(r.score.year) : '',
+        has ? c.errors.join('; ') : '',
+        has ? RefMatch.workTitleFull(r.best) : '',
+        has ? r.best.DOI : '',
+        has && r.status !== 'mismatch' ? RefMatch.formatVancouver(r.best) : '',
+        has ? fieldStatus(c.title.ok) : '', has ? c.title.missing.join(' ') : '', has ? c.title.extra.join(' ') : '',
+        has ? fieldStatus(A.ok) : '', (A.missing || []).join('; '), (A.unknown || []).join('; '),
+        A.orderOk === undefined ? '' : (A.orderOk ? 'yes' : 'no'), (A.initialsWrong || []).join('; '),
+        has ? fieldStatus(c.journal.ok) : '', has ? c.journal.expected || '' : '',
+        has ? fieldStatus(c.year.ok) : '', has ? c.year.expected || '' : '',
+        has ? fieldStatus(c.volume.ok) : '', has ? c.volume.expected || '' : '',
+        has ? fieldStatus(c.issue.ok) : '', has ? c.issue.expected || '' : '',
+        has ? fieldStatus(c.pages.ok) : '', has ? c.pages.expected || '' : '',
+        has ? (r.doiNotFound ? 'not in crossref' : fieldStatus(c.doi.ok)) : '', r.doi || '',
       ]);
     }
     const csv = rows.map(row => row.map(csvCell).join(',')).join('\n');
@@ -297,10 +392,8 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
-  function fmtBool(v) { return v === true ? 'yes' : v === false ? 'no' : 'n/a'; }
-
   async function copyDois() {
-    const dois = state.results.filter(r => r.best && (r.status === 'match' || r.status === 'likely')).map(r => r.best.DOI);
+    const dois = state.results.filter(r => r.best && ['match', 'errors', 'likely'].includes(r.status)).map(r => r.best.DOI);
     try { await navigator.clipboard.writeText(dois.join('\n')); $('#copy-dois').textContent = `Copied ${dois.length}`; }
     catch (e) { $('#copy-dois').textContent = 'Copy failed'; }
     setTimeout(() => { $('#copy-dois').textContent = 'Copy matched DOIs'; }, 1500);

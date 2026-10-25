@@ -10,6 +10,8 @@
   --match-bg: #e3f5e8;
   --likely: #8a6100;
   --likely-bg: #fff4d6;
+  --errors: #b54708;
+  --errors-bg: #ffead5;
   --unverified: #6b7280;
   --unverified-bg: #eceef1;
   --mismatch: #b42318;
@@ -32,6 +34,8 @@
     --match-bg: #153321;
     --likely: #f0c45a;
     --likely-bg: #3a2f10;
+    --errors: #fdb07a;
+    --errors-bg: #3d2410;
     --unverified: #a3abb8;
     --unverified-bg: #262c35;
     --mismatch: #ff8a80;
@@ -51,6 +55,8 @@
   --match-bg: #153321;
   --likely: #f0c45a;
   --likely-bg: #3a2f10;
+  --errors: #fdb07a;
+  --errors-bg: #3d2410;
   --unverified: #a3abb8;
   --unverified-bg: #262c35;
   --mismatch: #ff8a80;
@@ -182,11 +188,17 @@ td.matched { max-width: 38ch; }
 td.matched .mt { font-weight: 600; }
 td.matched .meta { color: var(--muted); font-size: 0.9em; }
 td.matched .doi { font-family: var(--mono); font-size: 0.85em; word-break: break-all; }
-td.checks { white-space: nowrap; font-size: 0.9em; }
-td.checks div { line-height: 1.7; }
+td.checks { font-size: 0.88em; min-width: 220px; max-width: 30ch; }
+.check { line-height: 1.45; margin-bottom: 3px; }
+.check .mark { display: inline-block; width: 1.1em; font-weight: 700; }
+.check .note { margin-left: 1.1em; font-size: 0.92em; color: var(--muted); word-break: break-word; }
+.check.bad .note { color: var(--text); }
 .ok { color: var(--match); }
 .bad { color: var(--mismatch); }
+.warn { color: var(--likely); }
 .na { color: var(--muted); }
+.cite { margin-top: 6px; font-size: 0.88em; line-height: 1.45; word-break: break-word; }
+button.small { font-size: 0.85em; padding: 0 4px; }
 
 .badge {
   display: inline-block;
@@ -198,6 +210,7 @@ td.checks div { line-height: 1.7; }
 }
 .badge.match { color: var(--match); background: var(--match-bg); }
 .badge.likely { color: var(--likely); background: var(--likely-bg); }
+.badge.errors { color: var(--errors); background: var(--errors-bg); }
 .badge.unverified { color: var(--unverified); background: var(--unverified-bg); }
 .badge.mismatch { color: var(--mismatch); background: var(--mismatch-bg); }
 .badge.error { color: var(--error); background: var(--mismatch-bg); }

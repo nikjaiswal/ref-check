@@ -4,7 +4,7 @@
  * clients to roughly 3 requests per second with 3 concurrent requests. */
 
 const CROSSREF_BASE = 'https://api.crossref.org';
-const SELECT_FIELDS = 'DOI,title,author,editor,issued,published-print,published-online,created,container-title,volume,issue,page,type,score,publisher';
+const SELECT_FIELDS = 'DOI,title,subtitle,author,editor,issued,published,published-print,published-online,created,container-title,short-container-title,volume,issue,page,article-number,type,score,publisher';
 
 function buildUrl(path, params, mailto) {
   const url = new URL(CROSSREF_BASE + path);

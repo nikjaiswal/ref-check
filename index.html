@@ -12,7 +12,7 @@
   <header class="site-header">
     <div class="wrap">
       <h1>Reference Checker</h1>
-      <p class="tagline">Paste a reference list. Each entry is looked up in <a href="https://www.crossref.org/documentation/retrieve-metadata/rest-api/" target="_blank" rel="noopener">Crossref</a> and scored on how well the title, authors and year agree with the best match.</p>
+      <p class="tagline">Paste a reference list. Each entry is looked up in <a href="https://www.crossref.org/documentation/retrieve-metadata/rest-api/" target="_blank" rel="noopener">Crossref</a> and every part of it, from the authors to the page numbers, is compared with the Crossref record.</p>
     </div>
   </header>
 
@@ -70,9 +70,18 @@
     <section class="panel about">
       <h2>How it works</h2>
       <ul>
-        <li><strong>DOI present in the reference:</strong> the DOI is fetched directly and the metadata is compared with the text of your reference. A DOI that resolves to a different paper is flagged.</li>
-        <li><strong>No DOI:</strong> the reference text is sent to Crossref's bibliographic search and the top three results are scored.</li>
-        <li><strong>Scoring:</strong> title similarity, first-author surname, and publication year are each checked. <span class="badge match">Match</span> means all three agree, <span class="badge likely">Likely</span> means most agree, <span class="badge unverified">Unverified</span> means Crossref returned nothing close, and <span class="badge mismatch">Mismatch</span> means a DOI pointed to a different work.</li>
+        <li><strong>Finding the paper:</strong> if a reference has a DOI, that DOI is looked up directly. Otherwise the reference text goes to Crossref's bibliographic search and the top three results are compared.</li>
+        <li><strong>Checking every part:</strong> the reference is then compared with the Crossref record piece by piece.
+          <ul>
+            <li><strong>Authors:</strong> every surname, the author order, and each author's first initial. Authors left out are flagged unless the reference uses &ldquo;et al.&rdquo;</li>
+            <li><strong>Title:</strong> word by word, reporting missing and extra words. Case and punctuation are ignored.</li>
+            <li><strong>Journal:</strong> the full name or a standard abbreviation such as &ldquo;N Engl J Med&rdquo;.</li>
+            <li><strong>Year, volume, issue and pages:</strong> exact values. The year may be the online or the print year. Shortened page ranges such as 1716-20 are expanded.</li>
+            <li><strong>DOI:</strong> whether it is in Crossref and points to this paper.</li>
+          </ul>
+        </li>
+        <li><strong>Results:</strong> <span class="badge match">Match</span> means every part agrees. <span class="badge errors">Errors found</span> means the paper exists but some details are wrong, and the Crossref values are shown so you can fix them. <span class="badge likely">Likely</span> means a close but uncertain match. <span class="badge unverified">Unverified</span> means Crossref returned nothing close. <span class="badge mismatch">DOI mismatch</span> means the DOI belongs to a different paper.</li>
+        <li>A <span class="warn">!</span> marks a part that Crossref has but the reference leaves out, such as a missing issue number. It is not counted as an error.</li>
         <li>Everything runs in your browser. Nothing is stored on a server. Requests go only to <code>api.crossref.org</code>.</li>
         <li>Crossref covers most journal articles and many books, but not everything. An <em>Unverified</em> result means the reference could not be found, not that it is wrong. Check it by hand.</li>
       </ul>
