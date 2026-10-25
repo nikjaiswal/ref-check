@@ -16,10 +16,14 @@
     match: 'Match', likely: 'Likely', unverified: 'Unverified', mismatch: 'DOI mismatch', error: 'Error', pending: 'Checking…',
   };
 
-  const SAMPLE = `1. Sikora A, Celi LA, Abdulnour RE. Can AI say "I don't know"? N Engl J Med. 2026;394(19):1873-1875.
+  const SAMPLE = `1. Sikora A, Celi LA, Abdulnour RE. Can AI say "I don't know"? N Engl J Med. 2026;394(19):1873-1875. doi:10.1056/NEJMp2517624
 2. Komorowski M, Celi LA, Badawi O, Gordon AC, Faisal AA. The Artificial Intelligence Clinician learns optimal treatment strategies for sepsis in intensive care. Nat Med. 2018;24(11):1716-1720. doi:10.1038/s41591-018-0213-5
-3. Smith JA, Doe RB. Longitudinal outcomes of imaginary interventions in a fictional cohort. J Nonexistent Med. 2019;12(3):45-52.
-4. Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. Lancet. 1986;1(8476):307-310. https://doi.org/10.1038/s41591-018-0213-5`;
+3. Futoma J, Simons M, Panch T, Doshi-Velez F, Celi LA. The myth of generalisability in clinical research and machine learning in health care. Lancet Digit Health. 2020;2(9):e489-e492.
+4. Johnson AEW, Stone DJ, Celi LA, Pollard TJ. The MIMIC Code Repository: enabling reproducibility in critical care research. J Am Med Inform Assoc. 2018;25(1):32-39.
+5. Gottesman O, Johansson F, Komorowski M, Faisal A, Sontag D, Doshi-Velez F, Celi LA. Guidelines for reinforcement learning in healthcare. Nat Med. 2019;25(1):16-18.
+6. Panch T, Mattie H, Celi LA. The "inconvenient truth" about AI in healthcare. NPJ Digit Med. 2019;2:77.
+7. Smith JA, Doe RB. Longitudinal outcomes of imaginary interventions in a fictional cohort. J Nonexistent Med. 2019;12(3):45-52.
+8. Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. Lancet. 1986;1(8476):307-310. https://doi.org/10.1038/s41591-018-0213-5`;
 
   let state = { results: [], controller: null };
 
