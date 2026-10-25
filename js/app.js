@@ -16,11 +16,10 @@
     match: 'Match', likely: 'Likely', unverified: 'Unverified', mismatch: 'DOI mismatch', error: 'Error', pending: 'Checking…',
   };
 
-  const SAMPLE = `1. Watson JD, Crick FHC. Molecular structure of nucleic acids: a structure for deoxyribose nucleic acid. Nature. 1953;171(4356):737-738.
-2. Lowry OH, Rosebrough NJ, Farr AL, Randall RJ. Protein measurement with the Folin phenol reagent. J Biol Chem. 1951;193(1):265-275.
-3. Kaplan EL, Meier P. Nonparametric estimation from incomplete observations. J Am Stat Assoc. 1958;53(282):457-481. doi:10.1080/01621459.1958.10501452
-4. Smith JA, Doe RB. Longitudinal outcomes of imaginary interventions in a fictional cohort. J Nonexistent Med. 2019;12(3):45-52.
-5. Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. Lancet. 1986;1(8476):307-310. https://doi.org/10.1038/171737a0`;
+  const SAMPLE = `1. Sikora A, Celi LA, Abdulnour RE. Can AI say "I don't know"? N Engl J Med. 2026;394(19):1873-1875.
+2. Komorowski M, Celi LA, Badawi O, Gordon AC, Faisal AA. The Artificial Intelligence Clinician learns optimal treatment strategies for sepsis in intensive care. Nat Med. 2018;24(11):1716-1720. doi:10.1038/s41591-018-0213-5
+3. Smith JA, Doe RB. Longitudinal outcomes of imaginary interventions in a fictional cohort. J Nonexistent Med. 2019;12(3):45-52.
+4. Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. Lancet. 1986;1(8476):307-310. https://doi.org/10.1038/s41591-018-0213-5`;
 
   let state = { results: [], controller: null };
 
